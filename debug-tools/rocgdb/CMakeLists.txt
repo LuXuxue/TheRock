@@ -452,6 +452,14 @@ set(ROCGDB_SCRIPT_CONTENT [=[#!/usr/bin/env bash
 ## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 ## IN THE SOFTWARE.
 
+# Enable debug mode if ROCGDB_WRAPPER_DEBUG is set
+if [ -n "$ROCGDB_WRAPPER_DEBUG" ]; then
+    set -x
+    DEBUG=1
+else
+    DEBUG=0
+fi
+
 # Find the active python version
 python_version=$(python3 --version 2>&1 | sed -n 's/^Python \([0-9]\+\.[0-9]\+\).*$/\1/p' )
 GDB_BIN_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
@@ -479,8 +487,8 @@ if [ -f "$GDB_BIN_DIR/$gdb_command" ]; then
     fi
 fi
 
-echo "Not successful in running rocgdb with active Python Version: ${python_version} in the system"
-echo "Checking for working Python Version Installed"
+[ $DEBUG -eq 1 ] && echo "Not successful in running rocgdb with active Python Version: ${python_version} in the system"
+[ $DEBUG -eq 1 ] && echo "Checking for working Python Version Installed"
 # If the default python version didn't work,
 # Make the rocgdb command with the working python version
 working_gdb=""
@@ -497,7 +505,7 @@ if [ -n "$working_gdb" ]
 then
     "$working_gdb" "$@"
 else
-    echo "ROCgdb execution Failed: No compatible Python version available in $GDB_BIN_DIR."
+    [ $DEBUG -eq 1 ] && echo "ROCgdb execution Failed: No compatible Python version available in $GDB_BIN_DIR."
 fi
 ]=])
 
