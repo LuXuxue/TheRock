@@ -473,39 +473,53 @@ if [ -z "$TERMINFO" ]; then
     export TERMINFO="$GDB_BIN_DIR/../lib/rocm_sysdeps/share/terminfo"
 fi
 
+# Function to validate if an executable works
+# Returns 0 if executable works, 1 if it doesn't
+validate_executable() {
+    local executable="$1"
+    if "$executable" --version >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Create a rocgdb command with the active python version.
 gdb_command="rocgdb-py$python_version"
-if ! [ -f "$GDB_BIN_DIR/$gdb_command" ]; then
-    # If we were built without python support, then try the -pynone binary.
-    gdb_command="rocgdb-pynone"
-fi
-if [ -f "$GDB_BIN_DIR/$gdb_command" ]; then
-    # If the command works (returns 0), exec the rocgdb-py<version> binary.
-    "$GDB_BIN_DIR/$gdb_command" --version > /dev/null 2>&1
-    if [ $? == 0 ]; then
-        exec "$GDB_BIN_DIR/$gdb_command" "$@"
-    fi
+rocgdb_active_python_version="$GDB_BIN_DIR/$gdb_command"
+if [ -f "$rocgdb_active_python_version" ] && validate_executable "$rocgdb_active_python_version"; then
+    # If the command works, exec the rocgdb-py<version> binary.
+    exec "$rocgdb_active_python_version" "$@"
 fi
 
-[ $DEBUG -eq 1 ] && echo "Not successful in running rocgdb with active Python Version: ${python_version} in the system"
-[ $DEBUG -eq 1 ] && echo "Checking for working Python Version Installed"
 # If the default python version didn't work,
 # Make the rocgdb command with the working python version
+[ $DEBUG -eq 1 ] && echo "Not successful in running rocgdb with active Python Version: ${python_version} in the system"
+[ $DEBUG -eq 1 ] && echo "Checking for working Python Version Installed"
+
 working_gdb=""
 while read -r gdb
 do
-    if "$gdb" --version >/dev/null 2>&1
-    then
+    if validate_executable "$gdb"; then
         working_gdb="$gdb"
         break
     fi
-done < <(find "$GDB_BIN_DIR" -name "rocgdb-py*" | sort -r)
-
+done < <(find "$GDB_BIN_DIR" -name "rocgdb-py*" ! -name "rocgdb-pynone" | sort -r)
 if [ -n "$working_gdb" ]
 then
     "$working_gdb" "$@"
 else
-    [ $DEBUG -eq 1 ] && echo "ROCgdb execution Failed: No compatible Python version available in $GDB_BIN_DIR."
+    # No rocgdb-py* Python version working available.
+    # Try rocgdb-pynone as a fallback
+    [ $DEBUG -eq 1 ] && echo "No Compatible Working rocgdb Python version available in $GDB_BIN_DIR."
+    [ $DEBUG -eq 1 ] && echo "Try Non Python version available"
+    if [ -f "$GDB_BIN_DIR/rocgdb-pynone" ] && validate_executable "$GDB_BIN_DIR/rocgdb-pynone"; then
+        working_gdb="$GDB_BIN_DIR/rocgdb-pynone"
+        "$working_gdb" "$@"
+    else
+        # If fallback failed.
+        echo "ROCgdb execution Failed: No Working rocgdb available in $GDB_BIN_DIR."
+    fi
 fi
 ]=])
 
