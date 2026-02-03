@@ -507,7 +507,7 @@ do
 done < <(find "$GDB_BIN_DIR" -name "rocgdb-py*" ! -name "rocgdb-pynone" | sort -r)
 if [ -n "$working_gdb" ]
 then
-    "$working_gdb" "$@"
+    exec "$working_gdb" "$@"
 else
     # No rocgdb-py* Python version working available.
     # Try rocgdb-pynone as a fallback
@@ -515,7 +515,7 @@ else
     [ $DEBUG -eq 1 ] && echo "Try Non Python version available"
     if [ -f "$GDB_BIN_DIR/rocgdb-pynone" ] && validate_executable "$GDB_BIN_DIR/rocgdb-pynone"; then
         working_gdb="$GDB_BIN_DIR/rocgdb-pynone"
-        "$working_gdb" "$@"
+        exec "$working_gdb" "$@"
     else
         # If fallback failed.
         echo "ROCgdb execution Failed: No Working rocgdb available in $GDB_BIN_DIR."
